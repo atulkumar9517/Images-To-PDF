@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Images to PDF</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f8f9fa;
+            color: #343a40;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        #uploadContainer {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        #fileInput {
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        #convertBtn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #convertBtn:hover {
+            background-color: #0056b3;
+        }
+        #images {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .image-container {
+            margin: 10px;
+            position: relative;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .image-container img {
+            max-width: 200px;
+            max-height: 200px;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>Upload Images and Convert to PDF</h1>
+    <div id="uploadContainer">
+        <input type="file" id="fileInput" multiple accept="image/*">
+        <button id="convertBtn">Convert to PDF</button>
+    </div>
+    <div id="images"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+    <script>
+        document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+        document.getElementById('convertBtn').addEventListener('click', convertToPDF);
+
+        function handleFileSelect(event) {
+            const files = event.target.files;
+            const imagesDiv = document.getElementById('images');
+            imagesDiv.innerHTML = ''; // Clear previous images
+
+            Array.from(files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    const container = document.createElement('div');
+                    container.className = 'image-container';
+                    container.appendChild(img);
+                    imagesDiv.appendChild(container);
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function convertToPDF() {
+            const imagesDiv = document.getElementById('images');
+            const imageContainers = imagesDiv.getElementsByClassName('image-container');
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'pt',
+                format: 'a4',
+                compress: false,
+            });
+
+            for (let i = 0; i < imageContainers.length; i++) {
+                const container = imageContainers[i];
+                const canvas = await html2canvas(container, {
+                    scale: 4, // Increase scale for higher resolution
+                    useCORS: true,
+                    logging: false,
+                    scrollY: -window.scrollY,
+                });
+                const imgData = canvas.toDataURL('image/jpeg', 1.0); // Set quality to 100%
+                const imgProps = pdf.getImageProperties(imgData);
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+                if (i > 0) pdf.addPage();
+                pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+            }
+
+            pdf.save('images.pdf');
+        }
+    </script>
+</body>
+</html>
